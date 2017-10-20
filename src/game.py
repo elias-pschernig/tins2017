@@ -1,14 +1,20 @@
 import main
 import mesh
+import trees
 
 class Game:
-    Mesh *ball
+    Trees *trees
 
 Game *game
 
 def game_init:
+    land_display_title("Dr. Forest")
+    
     land_alloc(game)
-    game.ball = mesh_make("ball", land_4x4_matrix_scale(20, 20, 20))
+    game.trees = trees_new()
+
+    for int i in range(50):
+        trees_make(game.trees, "oak", land_rnd(-300, 300), land_rnd(-200, 200))
 
 def game_tick:
     if land_closebutton(): land_quit()
@@ -19,11 +25,11 @@ def game_draw:
     float h = land_display_height()
     land_clear(0.5, 0.5, 0.5, 1)
 
-    Land4x4Matrix m = land_4x4_matrix_orthographic(-1, -1, 100,
-           1, 1, -100)
-    m = land_4x4_matrix_mul(m, land_4x4_matrix_translate(w / 2, h / 2, 0))
-    land_display_transform_4x4(&m)
-    mesh_draw(game.ball)
+    land_projection(land_4x4_matrix_mul(
+        land_4x4_matrix_orthographic(-w / 2, -h / 2, 1000, w / 2, h / 2, -1000),
+        land_4x4_matrix_rotate(1, 0, 0, pi / 4)))
+
+    trees_draw(game.trees)
 
 def game_done:
     pass
