@@ -15,7 +15,8 @@ def done:
 
 def realmain():
     land_init()
-    land_set_display_parameters(16 * 60, 9 * 60, LAND_WINDOWED | LAND_OPENGL)
+    land_set_display_parameters(16 * 60, 9 * 60, LAND_WINDOWED |
+        LAND_OPENGL | LAND_RESIZE)
     land_callbacks(init, tick, draw, done)
     land_mainloop()
 
