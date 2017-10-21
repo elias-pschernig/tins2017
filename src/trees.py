@@ -67,11 +67,6 @@ def trees_make_kind(Trees *trees, str name) -> Mesh*:
         _move(0, 0, 1)
         _make("cylinder")
         _pop()
-
-    if land_equals(name, "hill"):
-        _color(0.3, 0.5, 0.2, 1)
-        _size(480, 480, 1)
-        _make("grid")
         
     land_hash_insert(trees.kinds_by_name, name, G.mesh)
     return G.mesh

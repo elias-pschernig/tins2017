@@ -1,5 +1,6 @@
 import common
 import world
+import game
 
 class Mesh:
     LandTriangles *triangles
@@ -19,17 +20,6 @@ def _colorize(LandCSG *csg, LandColor rgba):
             LandFloat b = (1 + d) / 2
             v.rgba = land_color_premul(rgba.r * b, rgba.g * b, rgba.b * b, 1)
 
-def _heightmap(LandCSG *csg):
-    for LandCSGPolygon *p in LandArray *csg.polygons:
-        for LandCSGVertex *v in LandArray *p.vertices:
-            if v.pos.z > 0:
-                LandFloat h = world_height(v.pos.x, v.pos.y)
-                v.pos.z += h
-                LandVector a = land_vector(-0.1, 0, world_height(v.pos.x - 0.1, v.pos.y) - h)
-                LandVector b = land_vector(0, -0.1, world_height(v.pos.x, v.pos.y - 0.1) - h)
-                LandVector n = land_vector_normalize(land_vector_cross(a, b))
-                v.normal = n
-
 def mesh_add(Mesh* mesh, str what, LandColor rgba, Land4x4Matrix matrix):
     LandCSG *csg = None
     if land_equals(what, "ball"):
@@ -38,14 +28,8 @@ def mesh_add(Mesh* mesh, str what, LandColor rgba, Land4x4Matrix matrix):
     if land_equals(what, "cylinder"):
         csg = csg_cylinder(6, None)
 
-    if land_equals(what, "grid"):
-        csg = csg_block(100, 100, 1, True, None)
-
     land_csg_transform(csg, matrix)
 
-    if land_equals(what, "grid"):
-        _heightmap(csg)
-    
     _colorize(csg, rgba)
     land_csg_triangles(csg)
     mesh_add_csg(mesh, csg)
