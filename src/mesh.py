@@ -42,6 +42,10 @@ def mesh_add_csg(Mesh *self, LandCSG* csg):
                 vec.pos.x, vec.pos.y, vec.pos.z,
                 0, 0, vec.rgba.r, vec.rgba.g, vec.rgba.b, vec.rgba.a)
 
+def mesh_update_vertex(Mesh *self, int i, float x, y, z, r, g, b, a):
+    
+    land_update_vertex(self.triangles, i, x, y, z, 0, 0, r, g, b, a)
+
 def mesh_draw(Mesh *mesh, Land4x4Matrix matrix):
     land_display_transform_4x4(&matrix)
     land_triangles_draw(mesh.triangles)

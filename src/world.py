@@ -13,6 +13,7 @@ class Tile:
     float height    
 
 static Tile dummy
+static LandVector light = {-1, -1, 1}
 
 def world_width -> int: return W
 def world_height -> int: return H
@@ -61,20 +62,35 @@ def world_new -> World*:
                 if cb > 1: cb = 1
                 
                 t.color = land_color_rgba(cr, cg, cb, 1)
-        
-    world_update_mesh(self)
+    
+    world_create_mesh(self)
+
+    _update(self, 0, 0, 100, 100)
+    
     return self
 
 def world_blotch(World *self, LandFloat px, py, radius, LandColor color):
-    int ix = (px + 480) / 10
-    int iy = (py + 480) / 10
-    int ir = radius / 10
-    for int y in range(iy - ir, iy + 1 + ir):
-        if y < 0: continue
-        if y >= H: break
-        for int x in range(ix - ir, ix + 1 + ir):
-            if x < 0: continue
-            if x >= W: break
+    double s = 480
+
+    int ax = (px - radius + s) * 50 / s
+    int ay = (py - radius + s) * 50 / s
+    int bx = (px + radius + s) * 50 / s
+    int by = (py + radius + s) * 50 / s
+    bx++
+    by++
+
+    if ax < 0: ax = 0
+    if ay < 0: ay = 0
+    if bx > W: bx = W
+    if by > H: by = H
+
+    int ix = (px + s) * 50 / s
+    int iy = (py + s) * 50 / s
+    int ir = radius * 50 / s
+
+    for int y in range(ay, by):
+        for int x in range(ax, bx):
+           
             float d = sqrt((x - ix) * (x - ix) + (y - iy) * (y - iy))
             if d > ir:
                 continue
@@ -84,57 +100,95 @@ def world_blotch(World *self, LandFloat px, py, radius, LandColor color):
             float g = t.color.g * (1 - i) + color.g * i
             float b = t.color.b * (1 - i) + color.b * i
             t.color = land_color_rgba(r, g, b, 1)
-    world_update_mesh(self)
+
+    _update(self, ax, ay, bx, by)
 
 def world_patch(World *self, LandFloat px, py, r, LandColor color):
-    int ix = (px + 480) / 10
-    int iy = (py + 480) / 10
-    int ir = r / 10
-    for int y in range(iy - ir, iy + 1 + ir):
-        if y < 0: continue
-        if y >= H: break
-        for int x in range(ix - ir, ix + 1 + ir):
-            if x < 0: continue
-            if x >= W: break
+    double s = 480
+
+    int ax = (px - r + s) * 50 / s
+    int ay = (py - r + s) * 50 / s
+    int bx = (px + r + s) * 50 / s
+    int by = (py + r + s) * 50 / s
+    bx++
+    by++
+
+    if ax < 0: ax = 0
+    if ay < 0: ay = 0
+    if bx > W: bx = W
+    if by > H: by = H
+
+    for int y in range(ay + 1, by - 1):
+        for int x in range(ax + 1, bx - 1):
             Tile *t = world_tile(self, x, y)
             t.color = color
-    world_update_mesh(self)
+
+    _update(self, ax, ay, bx, by)
+
+def _update(World *self, int ax, ay, bx, by):
+    double s = 480
+    for int v in range(ay, by):
+        for int u in range(ax, bx):
+            int tr1 = 2 * (u + v * 100)
+            int tr2 = tr1 + 1
+
+            Tile *t1 = world_tile(self, u, v)
+            Tile *t2 = world_tile(self, u + 1, v)
+            Tile *t3 = world_tile(self, u + 1, v + 1)
+            Tile *t4 = world_tile(self, u, v + 1)
+            
+            float x1 = -s + u * s * 2 / 100
+            float y1 = -s + v * s * 2 / 100
+            float x2 = -s + (u + 1) * s * 2 / 100
+            float y2 = -s + v * s * 2 / 100
+            float x3 = -s + (u + 1) * s * 2 / 100
+            float y3 = -s + (v + 1) * s * 2 / 100
+            float x4 = -s + u * s * 2 / 100
+            float y4 = -s + (v + 1) * s * 2 / 100
+            
+            _update_vertex(self, tr1 * 3 + 0, x1, y1, t1)
+            _update_vertex(self, tr1 * 3 + 1, x2, y2, t2)
+            _update_vertex(self, tr1 * 3 + 2, x3, y3, t3)
+            _update_vertex(self, tr2 * 3 + 0, x3, y3, t3)
+            _update_vertex(self, tr2 * 3 + 1, x4, y4, t4)
+            _update_vertex(self, tr2 * 3 + 2, x1, y1, t1)
+
+def _update_vertex(World *self, int tr, float x, y, Tile *t):
+    LandVector n = _get_normal(self, x, y)
+    LandFloat d = land_vector_dot(n, light)
+    d = (1 + d) / 2
+    float r = t.color.r * d
+    float g = t.color.g * d
+    float b = t.color.b * d
+    mesh_update_vertex(self.mesh, tr, x, y, t.height, r, g, b, 1)
+
+def _get_normal(World *self, LandFloat x, y) -> LandVector:
+    LandFloat s = 9.61
+    LandFloat h = world_get_altitude(self, x, y)
+    LandFloat ha = world_get_altitude(self, x - s, y)
+    LandFloat hb = world_get_altitude(self, x, y - s)
+    LandVector a = land_vector(-s, 0, ha - h)
+    LandVector b = land_vector(0, -s, hb - h)
+    LandVector n = land_vector_normalize(land_vector_cross(a, b))
+    return n
 
 def world_get_altitude(World *world, LandFloat x, y) -> LandFloat:
-    Tile *t = world_tile(world, (int)(x + 480) / 10, (int)(y + 480) / 10)
+    LandFloat s = 9.61
+    Tile *t = world_tile(world, (int)(x + 480) / s, (int)(y + 480) / s)
     return t.height
 
 def world_get_color(World *world, LandFloat x, y) -> LandColor:
-    Tile *t = world_tile(world, (int)(x + 480) / 10, (int)(y + 480) / 10)
+    LandFloat s = 9.61 # 9.6 doesn't work?
+    Tile *t = world_tile(world, (int)(x + 480) / s, (int)(y + 480) / s)
     return t.color
 
-def _heightmap(World *world, LandCSG *csg):
-    LandVector light = {-1, -1, 1}
-    for LandCSGPolygon *p in LandArray *csg.polygons:
-        for LandCSGVertex *v in LandArray *p.vertices:
-            if True:
-                LandFloat h = world_get_altitude(world, v.pos.x, v.pos.y)
-                v.pos.z += h
-                LandVector a = land_vector(-10, 0, world_get_altitude(
-                    world, v.pos.x - 10, v.pos.y) - h)
-                LandVector b = land_vector(0, -10, world_get_altitude(
-                    world, v.pos.x, v.pos.y - 10) - h)
-                LandVector n = land_vector_normalize(land_vector_cross(a, b))
-                v.normal = n
-
-                LandFloat d = land_vector_dot(v.normal, light)
-                d = (1 + d) / 2
-                LandColor c = world_get_color(world, v.pos.x, v.pos.y)
-                v.rgba = land_color_premul(c.r * d, c.g * d, c.b * d, 1)
-
-def world_update_mesh(World *world):
+def world_create_mesh(World *world):
     if not world.mesh:
         world.mesh = mesh_make()
     land_triangles_clear(world.mesh.triangles)
 
     LandCSG *csg = csg_grid(100, 100, None)
     land_csg_transform(csg, land_4x4_matrix_scale(480, 480, 1))
-    _heightmap(world, csg)
     land_csg_triangles(csg)
     mesh_add_csg(world.mesh, csg)
 

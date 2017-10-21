@@ -9,6 +9,8 @@ class Game:
     World *world
     int tool
 
+    float lx, ly
+
 global Game *game
 
 def game_init:
@@ -19,11 +21,20 @@ def game_init:
     game.camera_angle = pi / -3.3
     game.world = world_new()
 
-    for int i in range(5):
+    for int i in range(25):
         float x = land_rnd(-300, 300)
         float y = land_rnd(-300, 300)
         trees_make(game.trees, "oak", x, y, world_get_altitude(
             game.world, x, y))
+
+def _draw(float mx, my) -> bool:
+    float dx = mx - game.lx
+    float dy = my - game.ly
+    if dx * dx + dy * dy > 10:
+        game.lx = mx
+        game.ly = my
+        return True
+    return False
 
 def game_tick:
     float dw = land_display_width()
@@ -70,18 +81,30 @@ def game_tick:
             t2.y -= 10
             t2.z = -world_get_altitude(game.world, t2.x, t2.y) # why -??
 
+    if land_mouse_button(0):
+        if mx < -420:
+            pass
+        elif game.tool == 1:
+            if _draw(mx, my):
+                world_blotch(game.world, t.x, t.y, 50, land_color_rgba(1, 0.8, 0.6, 1))
+        elif game.tool == 0:
+            if _draw(mx, my):
+                world_patch(game.world, t.x, t.y, 50, land_color_rgba(0.2, 0.2, 0.8, 1))
+
     if land_mouse_button_clicked(0):
 
         if mx < -420:
-            game.tool = (dh / 2 - my) / 60
-            print("%d", game.tool)
-        elif game.tool == 0:
+            game.tool = (h / 2 - my) / 60
+        elif game.tool == 2:
             trees_make(game.trees, "oak", t.x, t.y, world_get_altitude(
                 game.world, t.x, t.y))
-        elif game.tool == 1:
-            world_blotch(game.world, t.x, t.y, 50, land_color_rgba(1, 0.8, 0.6, 1))
-        elif game.tool == 2:
-             world_patch(game.world, t.x, t.y, 50, land_color_rgba(0, 0, 1, 1))
+            world_blotch(game.world, t.x, t.y, 20, land_color_rgba(0.3, 0.1, 0, 1))
+        elif game.tool == 3:
+            trees_callback(game.trees, t.x, t.y, 40, tree_whirl)
+        elif game.tool == 4:
+            trees_callback(game.trees, t.x, t.y, 40, tree_burn)
+
+    trees_tick(game.trees)
 
 def _letterbox(float *w, *h):
     float tw = land_display_width()
@@ -108,6 +131,16 @@ def game_draw:
 
     mesh_draw(game.world.mesh, land_4x4_matrix_translate(0, 0, 0))
     trees_draw(game.trees)
+
+    Land4x4Matrix matrix = land_4x4_matrix_identity()
+    land_projection(land_4x4_matrix_orthographic(-w / 2, -h / 2, 1000, w / 2, h / 2, -1000))
+    land_display_transform_4x4(&matrix)
+    land_render_state(LAND_DEPTH_TEST, False)
+
+    for int i in range(5):
+        land_color(0.5, 0.5, 0.5, 0.5)
+        float y = h / 2 - i * 60
+        land_filled_rectangle(-480 + 8, y - 8, -480 + 60, y - 60)
 
 def game_done:
     pass
