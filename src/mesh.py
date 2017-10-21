@@ -3,13 +3,16 @@ import world
 import game
 
 class Mesh:
+    str name
     LandTriangles *triangles
+    LandArray *frames # Mesh
 
 LandVector light = {-1, -1, 1}
 
-def mesh_make -> Mesh*:
+def mesh_make(str name) -> Mesh*:
     Mesh *mesh
     land_alloc(mesh)
+    mesh.name = land_strdup(name)
     mesh.triangles = land_triangles_new()
     return mesh
 
@@ -20,6 +23,11 @@ def _colorize(LandCSG *csg, LandColor rgba):
             LandFloat b = (1 + d) / 2
             v.rgba = land_color_premul(rgba.r * b, rgba.g * b, rgba.b * b, 1)
 
+def mesh_add_anim(Mesh *mesh, Mesh *anim):
+    if not mesh.frames:
+        mesh.frames = land_array_new()
+    land_array_add(mesh.frames, anim)
+
 def mesh_add(Mesh* mesh, str what, LandColor rgba, Land4x4Matrix matrix):
     LandCSG *csg = None
     if land_equals(what, "ball"):
@@ -27,6 +35,9 @@ def mesh_add(Mesh* mesh, str what, LandColor rgba, Land4x4Matrix matrix):
 
     if land_equals(what, "cylinder"):
         csg = csg_cylinder(6, None)
+
+    if land_equals(what, "cone"):
+        csg = csg_cone(6, None)
 
     land_csg_transform(csg, matrix)
 

@@ -184,7 +184,7 @@ def world_get_color(World *world, LandFloat x, y) -> LandColor:
 
 def world_create_mesh(World *world):
     if not world.mesh:
-        world.mesh = mesh_make()
+        world.mesh = mesh_make("world")
     land_triangles_clear(world.mesh.triangles)
 
     LandCSG *csg = csg_grid(100, 100, None)
