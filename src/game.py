@@ -2,12 +2,14 @@ import main
 import mesh
 import trees
 import world
+import levels
 
 class Game:
     Trees *trees
     float camera_angle
     World *world
     int tool
+    bool paused
 
     float lx, ly
 
@@ -25,11 +27,7 @@ def game_init:
     game.camera_angle = pi / -3.3
     game.world = world_new()
 
-    for int i in range(100):
-        float x = land_rnd(-400, 400)
-        float y = land_rnd(-400, 400)
-
-        place_tree(x, y)
+    levels_start(1)
 
 def _draw(float mx, my) -> bool:
     float dx = mx - game.lx
@@ -40,16 +38,18 @@ def _draw(float mx, my) -> bool:
         return True
     return False
 
-def place_tree(float x, y):
-    str kinds[] = {"oak", "fir", "eucalypt"}
-    int rk = land_rand(0, 2)
-    str kind = kinds[rk]
+def place_tree_rising(float x, y, str kind, bool rising) -> Tree*:
     flag = False
     trees_callback(game.trees, x, y, 30, _set_flag)
-    if flag: return
-    trees_make(game.trees, kind, x, y, world_get_altitude(
-        game.world, x, y))
+    if flag: return None
+    float z = rising ? -99 : world_get_altitude(game.world, x, y)
+    Tree *tree = trees_make(game.trees, kind, x, y, z)
     world_blotch(game.world, x, y, 40, land_color_rgba(0.3, 0.1, 0, 1))
+    tree.rising = rising
+    return tree
+
+def place_tree(float x, y, str kind) -> Tree*:
+    return place_tree_rising(x, y, kind, False)
 
 def game_tick:
     float dw = land_display_width()
@@ -96,6 +96,16 @@ def game_tick:
             t2.y -= 10
             t2.z = -world_get_altitude(game.world, t2.x, t2.y) # why -??
 
+    if land_mouse_button_clicked(0):
+        if mx < -420:
+            game.tool = (h / 2 - my) / 60
+            if game.tool == 7:
+                game.paused = not game.paused
+
+    if game.paused:
+        trees_dance(game.trees)
+        return
+
     if land_mouse_button(0):
         if mx < -420:
             pass
@@ -113,11 +123,7 @@ def game_tick:
                 world_blotch(game.world, t.x, t.y, 40, land_color_rgba(0, 0, 0, 1))
         elif game.tool == 3:
             if _draw(mx, my):
-                place_tree(t.x, t.y)
-
-    if land_mouse_button_clicked(0):
-        if mx < -420:
-            game.tool = (h / 2 - my) / 60
+                place_tree_rising(t.x, t.y, "oak", True)
 
     trees_tick(game.trees)
 
@@ -144,7 +150,13 @@ def game_draw:
         land_4x4_matrix_orthographic(-w / 2, -h / 2, 1000, w / 2, h / 2, -1000),
         land_4x4_matrix_rotate(1, 0, 0, game.camera_angle)))
 
-    mesh_draw(game.world.mesh, land_4x4_matrix_translate(0, 0, 0))
+    if game.paused:
+        float a = land_get_ticks() % 60
+        a = a * 2 * pi / 60
+        mesh_draw(game.world.mesh, land_4x4_matrix_translate(
+            cos(a) * 10, sin(a) * 10, 0))
+    else:
+        mesh_draw(game.world.mesh, land_4x4_matrix_translate(0, 0, 0))
     trees_draw(game.trees)
 
     Land4x4Matrix matrix = land_4x4_matrix_identity()
@@ -152,7 +164,7 @@ def game_draw:
     land_display_transform_4x4(&matrix)
     land_render_state(LAND_DEPTH_TEST, False)
 
-    for int i in range(5):
+    for int i in range(8):
         land_color(0.5, 0.5, 0.5, 0.5)
         float x = -480 + 8
         float y = h / 2 - i * 60 - 60
@@ -169,6 +181,10 @@ def game_draw:
         if i == 3:
             land_color(0, 1, 0, 1)
             land_filled_circle(x + 10, y + 10, x + 52 - 10, y + 52 - 10)
+        if i == 7:
+            land_color(1, 1, 1, 1)
+            land_filled_rectangle(x + 10, y + 10, x + 20, y + 52 - 10)
+            land_filled_rectangle(x + 52 - 20, y + 10, x + 52 - 10, y + 52 - 10)
 
 def game_done:
     pass
