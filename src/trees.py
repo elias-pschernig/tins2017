@@ -16,12 +16,15 @@ class Tree:
     bool rising
     bool dancing
     bool beetle
+    bool invasive
     float angle
     Land4x4Matrix dance
     Tree *target
     int rest
     bool pregnant
     bool infested
+    int hungry
+    int water
 
 class Trees:
     LandArray *trees # Tree
@@ -36,7 +39,15 @@ class Trees:
     Land4x4Matrix stack[16]
     Mesh *mesh
 
+    int healthy
+    int lost
+    int beetles
+    int invasives
+    int fires
+    int hidden
+    
     Tree *found
+    int hungry
 
 macro PC 1000
 macro M Land4x4Matrix
@@ -60,12 +71,29 @@ def trees_new -> Trees*:
         land_array_add(self.particles, p)
     return self
 
+def trees_clear(Trees *self):
+    for Tree* tree in LandArray* self.trees:
+        land_free(tree)
+    land_array_clear(self.trees)
+    land_array_add(self.trees, None)
+    
+    for Tree* tree in LandArray* self.particles:
+        tree.alive = False
+
+    self.lost = 0
+
 def trees_make(Trees *trees, str name, float x, y, z) -> Tree*:
     Tree *tree
     land_alloc(tree)
     tree.mesh = make_kind(trees, name)
     tree.alive = True
-    tree.angle = land_rnd(-pi / 4, pi / 4)
+    if land_equals(name, "beetle"):
+        tree.angle = atan2(x, -y)
+        tree.beetle = True
+    else:
+        tree.angle = land_rnd(-pi / 4, pi / 4)
+        if land_equals(name, "eucalypt"):
+            tree.invasive = True
     tree.pos = land_4x4_matrix_mul(
         land_4x4_matrix_translate(x, y, z),
         land_4x4_matrix_rotate(0, 0, 1, tree.angle))
@@ -111,6 +139,16 @@ def trees_callback(Trees *trees, float x, y, radius,
         if dx * dx + dy * dy < radius * radius:
             cb(trees, tree, dx, dy)
 
+def trees_callback_square(Trees *trees, float x, y, radius,
+        void (*cb)(Trees *trees, Tree*, float , float)):
+    for Tree* tree in LandArray* trees.trees:
+        if not tree: continue
+        if not tree.alive: continue
+        float dx = tree.pos.v[3] - x
+        float dy = tree.pos.v[7] - y
+        if dx > -radius and dx < radius and dy > -radius and dy < radius:
+            cb(trees, tree, dx, dy)
+
 def tree_whirl(Trees *trees, Tree *tree, float dx, dy):
     tree.whirl = True
     tree.v = land_vector_normalize(land_vector(dx, dy, 1))
@@ -121,7 +159,14 @@ def tree_whirl(Trees *trees, Tree *tree, float dx, dy):
         land_vector(0, 0, 1), land_vector(dx, dy, 0)))
 
 def tree_burn(Trees *trees, Tree *tree, float dx, dy):
-    if tree.sink or tree.rising: return
+    if tree.sink: return
+    if tree.rising and not tree.invasive: return # burn invasives wile rising!
+    if tree.frame == 18 or tree.burning or tree.sick > 18: return
+    tree.burning = 140
+
+def tree_spread_fire(Trees *trees, Tree *tree, float dx, dy):
+    if tree.sink: return
+    if tree.rising: return # don't spread while rising
     if tree.frame == 18 or tree.burning or tree.sick > 18: return
     tree.burning = 140
 
@@ -129,8 +174,17 @@ def tree_sink(Trees *trees, Tree *tree, float dx, dy):
     tree.sink = True
     tree.burning = 0
 
+def tree_water(Trees *trees, Tree *tree, float dx, dy):
+    tree.water++
+    if tree.water > 2:
+        tree.burning = 0
+        if tree.beetle:
+            tree.sink = True
+    if tree.water > 6:
+        tree.sink = True
+
 def tree_sicken(Trees *trees, Tree *tree, float dx, dy):
-    if land_equals(tree.mesh.name, "eucalypt"):
+    if tree.invasive:
         return
     if tree.beetle: return
     flag = True
@@ -139,7 +193,7 @@ def tree_sicken(Trees *trees, Tree *tree, float dx, dy):
         tree.frame++
 
 def tree_blight(Trees *trees, Tree *tree, float dx, dy):
-    if land_equals(tree.mesh.name, "eucalypt"):
+    if tree.invasive:
         return
     if tree.beetle: return
     tree.blighted = True
@@ -148,7 +202,9 @@ def tree_blight(Trees *trees, Tree *tree, float dx, dy):
 def tree_infest(Trees *trees, Tree *tree, float dx, dy):
     if tree.sink: return
     if tree.sick: return
-    if tree.infested: return
+    if tree.infested:
+        if trees.hungry < 50:
+            return
     if land_equals(tree.mesh.name, "oak"):
         trees.found = tree
 
@@ -195,13 +251,21 @@ def trees_tick(Trees *trees):
         if tree.burning:
             tree.burning--
             if tree.burning == 0:
-                tree.sick = 19
+                if tree.beetle:
+                    tree.sink = True
+                else:
+                    trees.lost++
+                    tree.frame = 18
+                    tree.sick = 19
                 trees_callback(trees, tree.pos.v[3], tree.pos.v[7],
-                    100, tree_burn)
-            
-            int wf = 18 * (140 - tree.burning) / 140
-            if wf > tree.frame:
-                tree.frame = wf
+                    100, tree_spread_fire)
+                continue
+
+            if not tree.beetle:
+                int wf = 18 * (140 - tree.burning) / 140
+                if wf > tree.frame:
+                    tree.frame = wf
+                    tree.sick = wf
             
             int f = land_rand(0, 20)
             if f < 10:
@@ -211,6 +275,8 @@ def trees_tick(Trees *trees):
         if tree.sink:
             tree.pos.v[11] -= 0.5
             if tree.pos.v[11] < -100:
+                if tree.sick <= 18 and not tree.beetle:
+                    trees.lost++
                 tree.alive = False
         if tree.rising:
             z += 0.5
@@ -242,8 +308,9 @@ def trees_tick(Trees *trees):
             if tree.pos.v[11] < -100:
                 tree.whirl = False
                 tree.alive = False
+                if not tree.beetle: trees.lost++
 
-        if tree.beetle and not tree.sink:
+        if tree.beetle and not tree.sink and not tree.rising:
             if tree.rest:
                 tree.rest--
                 continue
@@ -253,6 +320,7 @@ def trees_tick(Trees *trees):
             if tree.target:
                 Tree *tt = tree.target
                 if not tt.alive or tt.sink or tt.sick > 18:
+                    tt.infested = False
                     tree.target = None
                     tree.pregnant = True
                     continue
@@ -284,12 +352,17 @@ def trees_tick(Trees *trees):
                     float ty = p.y - land_rnd(-100, 100)
                     tree.pos = mul(tra(p.x, p.y, p.z),
                         land_4x4_matrix_rotate(0, 0, 1, atan2(tx, -ty)))
+            if tree.burning:
+                b.x *= 0.3
+                b.y *= 0.3
             tree.pos = mul(tra(b.x, b.y, world_get_altitude(
                 game.world, p.x, p.y) - p.z), tree.pos)
 
     int n = land_array_count(trees.trees)
     int per_second = 1 + n / 60
     for int ri in range(per_second):
+        n = land_array_count(trees.trees)
+        if n < 2: break
         int r = land_rand(1, n - 1)
         Tree* rtree = land_array_get_nth(trees.trees, r)
         float x = rtree.pos.v[3]
@@ -332,16 +405,45 @@ def trees_tick(Trees *trees):
                     Tree* clone = trees_make(trees, "beetle", p.x, p.y, p.z)
                     clone.beetle = True
                 trees.found = None
+                trees.hungry = rtree.hungry
                 trees_callback(trees, x, y, 200, tree_infest)
                 if trees.found:
+                    rtree.hungry = 0
                     rtree.target = trees.found
                     trees.found.infested = True
+                else:
+                    rtree.hungry++
 
+    # count
+    trees.fires = 0
+    trees.healthy = 0
+    trees.beetles = 0
+    trees.invasives = 0
+    trees.hidden = 0
+    for int i in range(1, n):
+        Tree* t = land_array_get_nth(trees.trees, i)
+        if land_equals(t.mesh.name, "oak") or\
+                land_equals(t.mesh.name, "fir"):
+            if not t.sick and not t.burning and not t.rising:
+                trees.healthy++
+            if t.burning:
+                trees.fires++
+        if t.beetle:
+            if t.rising: trees.hidden++
+            else: trees.beetles++
+        if t.invasive:
+            if t.rising: trees.hidden++
+            elif t.sick <= 18:
+                trees.invasives++
+        
     # prune dead trees (actually, only the first one)
     for int i in range(1, n):
         Tree* dtree = land_array_get_nth(trees.trees, i)
         if not dtree.alive:
-            land_array_remove(trees.trees, i)
+            Tree *t = land_array_remove(trees.trees, i)
+            if land_equals(t.mesh.name, "oak") or\
+                    land_equals(t.mesh.name, "fir"):
+            land_free(t)
             break
 
     for Tree* tree in LandArray* trees.particles:

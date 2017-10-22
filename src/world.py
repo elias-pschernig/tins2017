@@ -69,6 +69,11 @@ def world_new -> World*:
     
     return self
 
+def world_destroy(World *self):
+    land_free(self.tiles)
+    mesh_destroy(self.mesh)
+    land_free(self)
+
 def world_blotch(World *self, LandFloat px, py, radius, LandColor color):
     double s = 480
 

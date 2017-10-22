@@ -3,7 +3,7 @@ import world
 import game
 
 class Mesh:
-    str name
+    char *name
     LandTriangles *triangles
     LandArray *frames # Mesh
 
@@ -15,6 +15,16 @@ def mesh_make(str name) -> Mesh*:
     mesh.name = land_strdup(name)
     mesh.triangles = land_triangles_new()
     return mesh
+
+def mesh_destroy(Mesh* self):
+    if self.frames:
+        for Mesh *m in LandArray *self.frames:
+            if m != self:
+                mesh_destroy(m)
+        land_array_destroy(self.frames)
+    land_triangles_destroy(self.triangles)
+    land_free(self.name)
+    land_free(self)
 
 def _colorize(LandCSG *csg, LandColor rgba):
     for LandCSGPolygon *p in LandArray *csg.polygons:
