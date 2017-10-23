@@ -20,19 +20,35 @@ class Game:
     bool won
     int countdown
 
+    LandSound *splash
+    int splash_t
+    LandSound *frog
+    LandSound *fire
+    bool fire_p
+    LandSound *tree
+    int wind_t
+    LandSound *wind
+
 global Game *game
 
 bool flag
 def _set_flag(Trees *trees, Tree *tree, float dx, dy):
     flag = True
 
+def music(str name):
+    land_stream_music_once(game.music, name)
+
 def game_init:
     land_display_title("Dr. Forest")
     land_alloc(game)
 
     game.music = land_stream_new(2048, 4, 44100, 16, 2)
-    land_stream_music(game.music, "data/funk.ogg")
-    land_stream_set_playing(game.music, False)
+
+    game.splash = land_sound_load("data/splash.ogg")
+    game.frog = land_sound_load("data/frog.ogg")
+    game.fire = land_sound_load("data/fire.ogg")
+    game.tree = land_sound_load("data/tree.ogg")
+    game.wind = land_sound_load("data/wind.ogg")
     
     game.trees = trees_new()
     game.camera_angle = pi / -3.3
@@ -149,11 +165,15 @@ def game_tick:
         if land_key_pressed(LandKeyBackspace):
             game.level.number -= 2
             game.won = True
+            pause_toggle()
         if land_key_pressed(LandKeyEnter):
             game.won = True
+            pause_toggle()
         trees_dance(game.trees)
         funky(False)
         return
+
+    int tick = land_get_ticks()
 
     levels_tick()
 
@@ -164,10 +184,16 @@ def game_tick:
             if _draw(mx, my):
                 world_blotch(game.world, t.x, t.y, 50, land_color_rgba(1, 0.8, 0.6, 1))
                 trees_callback(game.trees, t.x, t.y, 60, tree_whirl)
+                if tick > game.wind_t:
+                    game.wind_t = tick + 15
+                    land_sound_play(game.wind, 1, 0, land_rnd(1, 1.25))
         elif game.tool == 0:
             if _draw(mx, my):
                 world_patch(game.world, t.x, t.y, 40, land_color_rgba(0.2, 0.4, 0.4, 1))
                 trees_callback_square(game.trees, t.x, t.y, 50, tree_water)
+                if tick > game.splash_t:
+                    game.splash_t = tick + 40
+                    land_sound_play(game.splash, 1, 0, 1)
         elif game.tool == 2:
             if _draw(mx, my):
                 trees_callback(game.trees, t.x, t.y, 60, tree_burn)
@@ -211,7 +237,11 @@ def pause_toggle:
     if game.won and not game.paused:
         game.won = False
         game_restart_level(game.level.number + 1)
-    land_stream_set_playing(game.music, game.paused)
+    if game.paused:
+        music("data/funk.ogg")
+    else:
+        music("data/forest.ogg")
+    
     funky(game.paused)
 
 def _letterbox(float *w, *h) -> float:
@@ -326,6 +356,15 @@ def game_draw:
         land_color(1, 0, 0, 1)
         land_text_pos(480, -h / 2 + 32)
         land_print_right("%d fires!", game.trees.fires)
+
+    if game.trees.burning:
+        if not game.fire_p:
+            land_sound_loop(game.fire, 1, 0, 1)
+            game.fire_p = True
+    else:
+        if game.fire_p:
+            land_sound_stop(game.fire)
+            game.fire_p = False
 
     if game.trees.beetles:
         land_color(1, 1, 0, 1)

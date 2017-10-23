@@ -45,6 +45,7 @@ class Trees:
     int invasives
     int fires
     int hidden
+    int burning
     
     Tree *found
     int hungry
@@ -150,6 +151,11 @@ def trees_callback_square(Trees *trees, float x, y, radius,
             cb(trees, tree, dx, dy)
 
 def tree_whirl(Trees *trees, Tree *tree, float dx, dy):
+    if tree.whirl: return
+    if tree.beetle:
+        land_sound_play(game.frog, 1, 0, 1)
+    else:
+        land_sound_play(game.tree, 1, 0, 1)
     tree.whirl = True
     tree.v = land_vector_normalize(land_vector(dx, dy, 1))
     tree.v.x *= 5
@@ -175,13 +181,16 @@ def tree_sink(Trees *trees, Tree *tree, float dx, dy):
     tree.burning = 0
 
 def tree_water(Trees *trees, Tree *tree, float dx, dy):
+    if tree.sink: return
     tree.water++
     if tree.water > 2:
         tree.burning = 0
         if tree.beetle:
             tree.sink = True
+            land_sound_play(game.frog, 1, 0, 1)
     if tree.water > 6:
         tree.sink = True
+        land_sound_play(game.tree, 1, 0, 1)
 
 def tree_sicken(Trees *trees, Tree *tree, float dx, dy):
     if tree.invasive:
@@ -253,6 +262,7 @@ def trees_tick(Trees *trees):
             if tree.burning == 0:
                 if tree.beetle:
                     tree.sink = True
+                    land_sound_play(game.frog, 1, 0, 1)
                 else:
                     trees.lost++
                     tree.frame = 18
@@ -420,8 +430,11 @@ def trees_tick(Trees *trees):
     trees.beetles = 0
     trees.invasives = 0
     trees.hidden = 0
+    trees.burning = 0
     for int i in range(1, n):
         Tree* t = land_array_get_nth(trees.trees, i)
+        if t.burning and not t.beetle:
+            trees.burning++
         if land_equals(t.mesh.name, "oak") or\
                 land_equals(t.mesh.name, "fir"):
             if not t.sick and not t.burning and not t.rising:
