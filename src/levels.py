@@ -72,19 +72,19 @@ def levels_start(int number) -> Level*:
         tools(50, 100, 0, 0, 0)
         level.name = "Beetles again! Use the Tree-Tosser™!"
 
-    if number == 4:
+    if number == 6:
         round_forest(200, 40, 40)
         level.required = 30
         tools(200, 200, 0, 0, 0)
         level.name = "Protect the forest!"
 
-    if number == 5:
+    if number == 4:
         round_forest(400, 31, 30)
         level.required = 10
         tools(0, 0, 100, 0, 0)
         level.name = "Invasive species! Use the Flame-Thrower™!"
 
-    if number == 6:
+    if number == 5:
         round_forest(70, 10, 10)
         level.required = 10
         tools(0, 0, 200, 0, 0)
@@ -177,7 +177,7 @@ def levels_tick:
                     beetles(5, 400)
                     level.done = True
 
-    if level.number == 4:
+    if level.number == 6:
         for int wave in range(14):
             if level.tick == 180 + 180 * wave:
                 if wave % 2 == 0:
@@ -187,12 +187,12 @@ def levels_tick:
                 if wave == 13:
                     level.done = True
 
-    if level.number == 5:
+    if level.number == 4:
         for int wave in range(1):
             if level.tick == 180 + 180 * wave:
                 level.done = True
 
-    if level.number == 6:
+    if level.number == 5:
         for int wave in range(10):
             if level.tick == 180 + 180 * wave:
                 if wave < 4: beetles(1, 400)
