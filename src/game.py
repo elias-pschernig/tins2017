@@ -76,6 +76,16 @@ def _draw(float mx, my) -> bool:
         return True
     return False
 
+def _draw2(float mx, my) -> bool:
+    float dx = mx - game.lx
+    float dy = my - game.ly
+    if game.level.tools[game.tool] == 0: return False
+    if dx * dx + dy * dy > 10:
+        game.lx = mx
+        game.ly = my
+        return True
+    return False
+
 def place_tree_rising(float x, y, str kind, bool rising) -> Tree*:
     flag = False
     trees_callback(game.trees, x, y, 30, _set_flag)
@@ -199,16 +209,18 @@ def game_tick:
                 trees_callback(game.trees, t.x, t.y, 60, tree_burn)
                 world_blotch(game.world, t.x, t.y, 40, land_color_rgba(0, 0, 0, 1))
         elif game.tool == 3:
-            if _draw(mx, my):
-                place_tree_rising(t.x, t.y, "oak", True)
-                if not land_rand(0, 2):
-                    place_tree_rising_nc(t.x, t.y, "beetle", True, False)
+            if _draw2(mx, my):
+                if place_tree_rising(t.x, t.y, "oak", True):
+                    game.level.tools[game.tool]--
+                    if not land_rand(0, 2):
+                        place_tree_rising_nc(t.x, t.y, "beetle", True, False)
         elif game.tool == 4:
-            if _draw(mx, my):
+            if _draw2(mx, my):
                 str kind = "fir"
                 if not land_rand(0, 2):
                     kind = "eucalypt"
-                place_tree_rising(t.x, t.y, kind, True)
+                if place_tree_rising(t.x, t.y, kind, True):
+                    game.level.tools[game.tool]--
 
     trees_tick(game.trees)
 

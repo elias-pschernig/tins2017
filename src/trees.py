@@ -112,6 +112,7 @@ def trees_particle(Trees *trees, str kind, float x, y, z):
     tree.burning = 0
     tree.alive = True
     tree.frame = land_rand(0, land_array_count(tree.mesh.frames) - 1)
+    tree.dancing = False
     
     if land_starts_with(kind, "fire"):
         tree.v.z = 0.7
@@ -291,7 +292,7 @@ def trees_tick(Trees *trees):
         if tree.rising:
             z += 0.5
             float az = world_get_altitude(game.world, x, y)
-            float s = 1 - (az - z) / 100
+            float s = 1 - (az - z) / 20
             if s < 0.1: s = 0.1
             tree.pos = land_4x4_matrix_mul(land_4x4_matrix_translate(x, y, z),
                 land_4x4_matrix_mul(
@@ -315,7 +316,10 @@ def trees_tick(Trees *trees):
             tree.pos.v[3] = x
             tree.pos.v[7] = y
             tree.pos.v[11] = z
-            if tree.pos.v[11] < -100:
+            if tree.burning and z < 0:
+                # let it burn instead
+                tree.whirl = False
+            if z < -100:
                 tree.whirl = False
                 tree.alive = False
                 if not tree.beetle: trees.lost++

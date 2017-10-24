@@ -50,6 +50,7 @@ def levels_start(int number) -> Level*:
     level.number = number
     level.tick = 0
     level.done = False
+    level.required = 0
 
     level.name = "the end"
     tools(-1, -1, -1, -1, -1)
