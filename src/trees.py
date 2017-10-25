@@ -23,6 +23,7 @@ class Tree:
     int rest
     bool pregnant
     bool infested
+    bool tree
     int hungry
     int water
 
@@ -95,6 +96,11 @@ def trees_make(Trees *trees, str name, float x, y, z) -> Tree*:
         tree.angle = land_rnd(-pi / 4, pi / 4)
         if land_equals(name, "eucalypt"):
             tree.invasive = True
+            tree.tree = True
+        if land_equals(name, "oak"):
+            tree.tree = True
+        if land_equals(name, "fir"):
+            tree.tree = True
     tree.pos = land_4x4_matrix_mul(
         land_4x4_matrix_translate(x, y, z),
         land_4x4_matrix_rotate(0, 0, 1, tree.angle))
@@ -166,12 +172,14 @@ def tree_whirl(Trees *trees, Tree *tree, float dx, dy):
         land_vector(0, 0, 1), land_vector(dx, dy, 0)))
 
 def tree_burn(Trees *trees, Tree *tree, float dx, dy):
+    if not tree.tree and not tree.beetle: return
     if tree.sink: return
     if tree.rising and not tree.invasive: return # burn invasives wile rising!
     if tree.frame == 18 or tree.burning or tree.sick > 18: return
     tree.burning = 140
 
 def tree_spread_fire(Trees *trees, Tree *tree, float dx, dy):
+    if not tree.tree and not tree.beetle: return
     if tree.sink: return
     if tree.rising: return # don't spread while rising
     if tree.frame == 18 or tree.burning or tree.sick > 18: return
@@ -180,6 +188,12 @@ def tree_spread_fire(Trees *trees, Tree *tree, float dx, dy):
 def tree_sink(Trees *trees, Tree *tree, float dx, dy):
     tree.sink = True
     tree.burning = 0
+
+def tree_raise(Trees *trees, Tree *tree, float dx, dy):
+    if not tree.sink and not tree.rising:
+        float x = tree.pos.v[3]
+        float y = tree.pos.v[7]
+        tree.pos.v[11] = world_get_altitude(game.world, x, y)
 
 def tree_water(Trees *trees, Tree *tree, float dx, dy):
     if tree.sink: return
@@ -194,9 +208,10 @@ def tree_water(Trees *trees, Tree *tree, float dx, dy):
         land_sound_play(game.tree, 1, 0, 1)
 
 def tree_sicken(Trees *trees, Tree *tree, float dx, dy):
+    if not tree.tree:
+        return
     if tree.invasive:
         return
-    if tree.beetle: return
     flag = True
     tree.sick++
     if tree.frame < 18:
@@ -233,10 +248,13 @@ def trees_dance(Trees *trees):
         float z = tree.dance.v[11]
         int t = land_get_ticks()
         int t2 = t % 120
-        z += (sin((t % 30)  / 30.0 * pi * 2) + 1) * 10
+        float a = 0
+        if not tree.invasive and not tree.sick and (tree.tree or tree.beetle):
+            z += (sin((t % 30)  / 30.0 * pi * 2) + 1) * 10
+        if tree.tree:
+            a = sin(t2 / 120.0 * pi * 2) / 2
         tree.pos = land_4x4_matrix_mul(land_4x4_matrix_translate(
-            x, y, z), land_4x4_matrix_rotate(
-            0, 1, 0, sin(t2 / 120.0 * pi * 2) / 2))
+            x, y, z), land_4x4_matrix_rotate(0, 1, 0, a))
 
     for Tree* tree in LandArray* trees.particles:
         if not tree.alive: continue
@@ -366,11 +384,14 @@ def trees_tick(Trees *trees):
                     float ty = p.y - land_rnd(-100, 100)
                     tree.pos = mul(tra(p.x, p.y, p.z),
                         land_4x4_matrix_rotate(0, 0, 1, atan2(tx, -ty)))
+
+            b.z = world_get_altitude(game.world, p.x, p.y) - p.z
+            b = land_vector_normalize(b)
+            
             if tree.burning:
                 b.x *= 0.3
                 b.y *= 0.3
-            tree.pos = mul(tra(b.x, b.y, world_get_altitude(
-                game.world, p.x, p.y) - p.z), tree.pos)
+            tree.pos = mul(tra(b.x, b.y, b.z), tree.pos)
 
     int n = land_array_count(trees.trees)
     int per_second = 1 + n / 60

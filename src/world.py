@@ -1,8 +1,8 @@
 import common
 import mesh
 
-static macro W 100
-static macro H 100
+static macro W 101
+static macro H 101
 
 class World:
     Tile *tiles
@@ -127,6 +127,36 @@ def world_patch(World *self, LandFloat px, py, r, LandColor color):
         for int x in range(ax + 1, bx - 1):
             Tile *t = world_tile(self, x, y)
             t.color = color
+
+    _update(self, ax, ay, bx, by)
+
+def world_raise(World *self, LandFloat px, py, radius, height):
+    double s = 480
+
+    int ax = (px - radius + s) * 50 / s
+    int ay = (py - radius + s) * 50 / s
+    int bx = (px + radius + s) * 50 / s
+    int by = (py + radius + s) * 50 / s
+    bx++
+    by++
+
+    if ax < 0: ax = 0
+    if ay < 0: ay = 0
+    if bx > W: bx = W
+    if by > H: by = H
+
+    int ix = (px + s) * 50 / s
+    int iy = (py + s) * 50 / s
+    int ir = radius * 50 / s
+
+    for int y in range(ay + 1, by - 1):
+        for int x in range(ax + 1, bx - 1):
+            float d = sqrt((x - ix) * (x - ix) + (y - iy) * (y - iy))
+            if d > ir:
+                continue
+            float i = (ir - d) / ir
+            Tile *t = world_tile(self, x, y)
+            t.height += i * height
 
     _update(self, ax, ay, bx, by)
 

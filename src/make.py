@@ -116,6 +116,14 @@ def make_kind(Trees *trees, str name) -> Mesh*:
             _make("cone")
             _pop()
 
+        if land_equals(name, "post"):
+            _push()
+            _color(.8, .8, .8, 1)
+            _size(12, 12, 24)
+            _move(0, 0, 1)
+            _make("cylinder")
+            _pop()
+
         if land_equals(name, "fire"):
             _push()
             float s = land_rnd(3, 10)

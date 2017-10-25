@@ -13,7 +13,8 @@ class Game:
 
     float lx, ly
     Level *level
-    LandFont *font
+    LandFont *bigfont
+    LandFont *smallfont
     bool resizing
     LandStream *music
 
@@ -104,11 +105,16 @@ def place_tree(float x, y, str kind) -> Tree*:
     return place_tree_rising(x, y, kind, False)
 
 def reload_font(float s):
-    if game.font: land_font_destroy(game.font)
+    if game.bigfont: land_font_destroy(game.bigfont)
+    if game.smallfont: land_font_destroy(game.smallfont)
     int si = 32 / s
-    game.font = land_font_load("data/JosefinSans-Regular.ttf", si)
-    land_font_scale(game.font, 32.0 / si)
-    land_font_yscale(game.font, -32.0 / si)
+    game.bigfont = land_font_load("data/JosefinSans-Regular.ttf", si)
+    land_font_scale(game.bigfont, 32.0 / si)
+    land_font_yscale(game.bigfont, -32.0 / si)
+    si = 24 / s
+    game.smallfont = land_font_load("data/JosefinSans-Regular.ttf", si)
+    land_font_scale(game.smallfont, 24.0 / si)
+    land_font_yscale(game.smallfont, -24.0 / si)
 
 def game_tick:
     float dw = land_display_width()
@@ -172,6 +178,9 @@ def game_tick:
                 game.tool = tool
                    
     if game.paused:
+        if land_mouse_delta_button(0) and not land_mouse_button(0):
+            if mx >= -420:
+                pause_toggle()
         if land_key_pressed(LandKeyBackspace):
             game.level.number -= 2
             game.won = True
@@ -201,6 +210,8 @@ def game_tick:
             if _draw(mx, my):
                 world_patch(game.world, t.x, t.y, 40, land_color_rgba(0.2, 0.4, 0.4, 1))
                 trees_callback_square(game.trees, t.x, t.y, 50, tree_water)
+                world_raise(game.world, t.x, t.y, 40, -2)
+                trees_callback(game.trees, t.x, t.y, 40, tree_raise)
                 if tick > game.splash_t:
                     game.splash_t = tick + 40
                     land_sound_play(game.splash, 1, 0, 1)
@@ -208,6 +219,12 @@ def game_tick:
             if _draw(mx, my):
                 trees_callback(game.trees, t.x, t.y, 60, tree_burn)
                 world_blotch(game.world, t.x, t.y, 40, land_color_rgba(0, 0, 0, 1))
+        elif game.tool == 5:
+            if _draw(mx, my):
+                if place_tree(t.x, t.y, "post"):
+                    world_patch(game.world, t.x, t.y, 40, land_color_rgba(1, 0.8, 0.4, 1))
+                    world_raise(game.world, t.x, t.y, 40, 10)
+                    trees_callback(game.trees, t.x, t.y, 40, tree_raise)
         elif game.tool == 3:
             if _draw2(mx, my):
                 if place_tree_rising(t.x, t.y, "oak", True):
@@ -285,13 +302,13 @@ def game_draw:
         land_4x4_matrix_orthographic(-w / 2, -h / 2, 1000, w / 2, h / 2, -1000),
         land_4x4_matrix_rotate(1, 0, 0, game.camera_angle)))
 
-    if game.paused:
-        float a = land_get_ticks() % 60
-        a = a * 2 * pi / 60
-        mesh_draw(game.world.mesh, land_4x4_matrix_translate(
-            cos(a) * 10, sin(a) * 10, 0))
-    else:
-        mesh_draw(game.world.mesh, land_4x4_matrix_translate(0, 0, 0))
+    #if game.paused:
+    #    float a = land_get_ticks() % 60
+    #    a = a * 2 * pi / 60
+    #    mesh_draw(game.world.mesh, land_4x4_matrix_translate(
+    #        cos(a) * 10, sin(a) * 10, 0))
+    #else:
+    mesh_draw(game.world.mesh, land_4x4_matrix_translate(0, 0, 0))
     trees_draw(game.trees)
 
     Land4x4Matrix matrix = land_4x4_matrix_identity()
@@ -303,29 +320,49 @@ def game_draw:
     land_filled_rectangle(-480, -h, -480 + 68, h)
 
     for int i in range(8):
-        land_color(0.5, 0.5, 0.5, 0.5)
         float x = -480 + 8
         float y = h / 2 - i * 60 - 60
-        if (i < 5 and game.level.tools[i]) or i >= 6:
+        if i <= 5 and game.level.tools[i]:
+            if i == game.tool:
+                land_color(0.9, 0.8, 0.5, 0.8)
+                land_filled_rectangle(x - 8, y, x + 60, y + 52)
+            else:
+                land_color(0.5, 0.5, 0.5, 0.5)
+                land_filled_rectangle(x, y, x + 52, y + 52)
+        elif i >= 6:
+            land_color(0.5, 0.5, 0.5, 0.5)
             land_filled_rectangle(x, y, x + 52, y + 52)
+
+        y += 34
+        x += 26
+        float r = 16
+        
         if i == 0 and game.level.tools[0]:
             land_color(0, 0, 1, 1)
-            land_filled_circle(x + 10, y + 10, x + 52 - 10, y + 52 - 10)
+            land_filled_circle(x - r, y - r, x + r, y + r)
         if i == 1 and game.level.tools[1]:
             land_color(1, 1, 1, 1)
-            land_filled_circle(x + 10, y + 10, x + 52 - 10, y + 52 - 10)
+            land_filled_circle(x - r, y - r, x + r, y + r)
         if i == 2 and game.level.tools[2]:
             land_color(1, 0, 0, 1)
-            land_filled_circle(x + 10, y + 10, x + 52 - 10, y + 52 - 10)
+            land_filled_circle(x - r, y - r, x + r, y + r)
         if i == 3 and game.level.tools[3]:
             land_color(0, 1, 0, 1)
-            land_filled_circle(x + 10, y + 10, x + 52 - 10, y + 52 - 10)
+            land_filled_circle(x - r, y - r, x + r, y + r)
         if i == 4 and game.level.tools[4]:
             land_color(0, 0.5, 0, 1)
-            land_filled_triangle(x + 10, y + 10, x + 26, y + 52 - 10, x + 52 - 10, y + 10)
+            land_filled_triangle(x - r, y - r, x, y + r, x + r, y - r)
+        if i == 5 and game.level.tools[5]:
+            land_color(1, 1, 0, 1)
+            land_filled_circle(x - r, y - r, x + r, y + r)
+
+        y -= 34
+        x -= 26
+        
         if i == 6:
             land_color(1, 1, 1, 1)
-            land_text_pos(x + 26, y + 20)
+            land_text_pos(x + 26, y + 26 - 4)
+            land_font_set(game.bigfont)
             land_print_middle("R")
         if i == 7:
             land_color(1, 1, 1, 1)
@@ -333,10 +370,12 @@ def game_draw:
             land_filled_rectangle(x + 52 - 20, y + 10, x + 52 - 10, y + 52 - 10)
 
         if i < 5 and game.level.tools[i] > 0:
-            land_color(1, 1, 1, 1)
-            land_text_pos(x + 26, y + 26)
+            land_color(0, 0, 0, 1)
+            land_text_pos(x + 26, y + 20)
+            land_font_set(game.smallfont)
             land_print_center("%d", game.level.tools[i])
 
+    land_font_set(game.bigfont)
     land_color(1, 0.8, 0.1, 1)
     land_text_pos(0, h / 2 - 8)
     if game.won:

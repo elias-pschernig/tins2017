@@ -45,6 +45,7 @@ def tools(int water, wind, fire, oaks, firs):
     level.tools[2] = fire
     level.tools[3] = oaks
     level.tools[4] = firs
+    level.tools[5] = 0
 
 def levels_start(int number) -> Level*:
     level.number = number
@@ -54,6 +55,7 @@ def levels_start(int number) -> Level*:
 
     level.name = "the end"
     tools(-1, -1, -1, -1, -1)
+    level.tools[5] = -1
 
     if number == 1:
         squared_forest(100, 100, 20, 20)
