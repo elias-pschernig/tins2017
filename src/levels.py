@@ -40,12 +40,15 @@ def round_forest(int radius, trees, good):
             if tree: break
 
 def tools(int water, wind, fire, oaks, firs):
+    tools2(water, wind, fire, oaks, firs, 0)
+
+def tools2(int water, wind, fire, oaks, firs, posts):
     level.tools[0] = water
     level.tools[1] = wind
     level.tools[2] = fire
     level.tools[3] = oaks
     level.tools[4] = firs
-    level.tools[5] = 0
+    level.tools[5] = posts
 
 def levels_start(int number) -> Level*:
     level.number = number
@@ -54,8 +57,7 @@ def levels_start(int number) -> Level*:
     level.required = 0
 
     level.name = "the end"
-    tools(-1, -1, -1, -1, -1)
-    level.tools[5] = -1
+    tools2(-1, -1, -1, -1, -1, -1)
 
     if number == 1:
         squared_forest(100, 100, 20, 20)
@@ -126,6 +128,11 @@ def levels_start(int number) -> Level*:
         round_forest(400, 100, 95)
         tools(999, 999, 999, 10, 10)
         level.name = "The final test"
+
+    if number == 13:
+        level.required = 10
+        tools2(0, 0, 0, 0, 100, 999)
+        level.name = "Futile attempt at containment"
     
     return &level
 
@@ -251,3 +258,8 @@ def levels_tick:
                     place_tree_rising(land_rnd(-400, 400), land_rnd(-400, 400), "eucalypt", True)
                 if wave == 19:
                     level.done = True
+
+    if level.number == 13:
+        for int wave in range(1):
+            if level.tick == 180 + 180 * wave:
+                level.done = True

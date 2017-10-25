@@ -26,6 +26,7 @@ class Tree:
     bool tree
     int hungry
     int water
+    int age
 
 class Trees:
     LandArray *trees # Tree
@@ -50,6 +51,8 @@ class Trees:
     
     Tree *found
     int hungry
+
+    int rcounter
 
 macro PC 1000
 macro M Land4x4Matrix
@@ -394,8 +397,9 @@ def trees_tick(Trees *trees):
             tree.pos = mul(tra(b.x, b.y, b.z), tree.pos)
 
     int n = land_array_count(trees.trees)
-    int per_second = 1 + n / 60
-    for int ri in range(per_second):
+    trees.rcounter += n
+    while trees.rcounter > 0:
+        trees.rcounter -= 60 # each tree on average should be hit every second
         n = land_array_count(trees.trees)
         if n < 2: break
         int r = land_rand(1, n - 1)
@@ -414,17 +418,24 @@ def trees_tick(Trees *trees):
                     tree_sink(trees, rtree, 0, 0)
                     Tree *t = trees_make(trees, "eucalypt", x, y, -99)
                     t.rising = True
+            elif rtree.invasive:
+                rtree.sick++
+                rtree.frame++
             else:
                 if land_rand(0, 4) == 0:
                     rtree.sick--
                     rtree.frame--
         elif land_equals(rtree.mesh.name, "eucalypt"):
+
+            rtree.age++
+            if rtree.age > 20:
+                rtree.sick++
             flag = False
             trees_callback(trees, x, y, 70, tree_blight)
             if not flag:
                 x += land_rnd(-60, 60)
                 y += land_rnd(-60, 60)
-                if x < -480 or y < -480 or x > 480 or y > 480:
+                if x < -440 or y < -480 or x > 480 or y > 480:
                     pass
                 else:
                     flag = False

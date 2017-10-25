@@ -220,8 +220,9 @@ def game_tick:
                 trees_callback(game.trees, t.x, t.y, 60, tree_burn)
                 world_blotch(game.world, t.x, t.y, 40, land_color_rgba(0, 0, 0, 1))
         elif game.tool == 5:
-            if _draw(mx, my):
+            if _draw2(mx, my):
                 if place_tree(t.x, t.y, "post"):
+                    game.level.tools[game.tool]--
                     world_patch(game.world, t.x, t.y, 40, land_color_rgba(1, 0.8, 0.4, 1))
                     world_raise(game.world, t.x, t.y, 40, 10)
                     trees_callback(game.trees, t.x, t.y, 40, tree_raise)
@@ -369,7 +370,7 @@ def game_draw:
             land_filled_rectangle(x + 10, y + 10, x + 20, y + 52 - 10)
             land_filled_rectangle(x + 52 - 20, y + 10, x + 52 - 10, y + 52 - 10)
 
-        if i < 5 and game.level.tools[i] > 0:
+        if i <= 5 and game.level.tools[i] > 0:
             land_color(0, 0, 0, 1)
             land_text_pos(x + 26, y + 20)
             land_font_set(game.smallfont)
